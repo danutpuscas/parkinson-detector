@@ -14,7 +14,6 @@ def load_model():
 
 model, scaler, threshold = load_model()
 
-# Streamlit UI
 st.title("Parkinson's Detection from Audio Features")
 st.write("Upload a CSV file with pre-extracted features.")
 
@@ -24,13 +23,16 @@ if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
 
-        # Ensure it only contains feature columns
-        features = df.select_dtypes(include=[np.number])
+        # Extract the correct feature columns
+        # Match number of features expected by scaler
+        numeric_features = df.select_dtypes(include=[np.number])
+        if numeric_features.shape[1] < scaler.n_features_in_:
+            raise ValueError(f"CSV only has {numeric_features.shape[1]} features, but model expects {scaler.n_features_in_}")
 
-        # Scale features
+        features = numeric_features.iloc[:, :scaler.n_features_in_]
+
+        # Scale and predict
         scaled_features = scaler.transform(features)
-
-        # Predict using the best model
         preds = model.predict_proba(scaled_features)[:, 1]
         mean_score = np.mean(preds)
 
@@ -41,5 +43,6 @@ if uploaded_file is not None:
             st.error("Prediction: Likely Parkinson's Disease")
         else:
             st.success("Prediction: Likely Healthy")
+
     except Exception as e:
         st.error(f"Error processing file: {e}")
